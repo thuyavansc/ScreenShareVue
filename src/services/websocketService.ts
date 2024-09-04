@@ -124,6 +124,7 @@
 // };
 
 //Code-2---------
+// import SimplePeer from "simple-peer";
 import SimplePeer from "simple-peer";
 
 let socket: WebSocket | null = null;
@@ -200,10 +201,11 @@ export const requestScreenShare = (target: string) => {
 
 // Handle WebRTC Offer from Android (SDP)
 // const handleOffer = (data: any) => {
+//   console.log("Received offer 2 : ", data.data);
 //   peer = new SimplePeer({ initiator: false, trickle: false });
 
 //   // Receive the offer from Android and signal it in SimplePeer
-//   peer.signal(data.offer);
+//   peer.signal(data.data);
 
 //   // Send SDP answer back to Android after creating it
 //   peer.on("signal", (answer) => {
@@ -230,54 +232,76 @@ export const requestScreenShare = (target: string) => {
 // };
 
 const handleOffer = (data: any) => {
-  console.log("Received offer: ", data.offer); // Log the offer to verify it's well-formed
-  if (!data.offer) {
-    console.error("No offer found in the message");
+  // console.log("WebRTC supported: ", !!window.RTCPeerConnection);
+
+  // try {
+  //   const peer = new SimplePeer({ initiator: false });
+  //   console.log("Peer instance created successfully", peer);
+  // } catch (error) {
+  //   console.error("Error creating SimplePeer instance", error);
+  // }
+
+  if (!data.data) {
+    // Ensure we're working with 'data.data'
+    console.error("No SDP offer found in the message");
     return;
   }
 
-  console.log("Received offer: ", data.offer); // Log the offer to verify it's well-formed
+  // console.log("Received SDP offer: ", data.data);
 
   // Ensure the peer is initialized only once
   if (!peer) {
-    peer = new SimplePeer({
-      initiator: false, // This peer is not the initiator since we are responding to an offer
-      trickle: false, // Disable trickle ICE to handle ICE candidates manually
-      stream: undefined, // Use undefined if no local stream is provided
-    });
+    try {
+      // Initialize SimplePeer instance with proper configuration
+      peer = new SimplePeer({
+        initiator: false, // This peer is not the initiator
+        trickle: false, // Disable trickle ICE
+        stream: undefined, // No local stream for this peer
+      });
 
-    // Handle the offer received from the Android device
-    peer.signal(data.offer);
+      console.log("SimplePeer instance created");
 
-    // When the peer creates an answer (after receiving an offer)
-    peer.on("signal", (answer) => {
-      console.log("Sending answer back to Android device", answer);
-      if (socket) {
-        socket.send(
-          JSON.stringify({
-            type: "Answer",
-            target: data.username,
-            answer, // The answer SDP
-          })
-        );
-      }
-    });
+      // Pass the SDP offer to SimplePeer
+      peer.signal({
+        type: "offer", // Ensure 'type' is 'offer'
+        sdp: data.data, // Use 'data.data' as the SDP offer
+      });
 
-    // When we receive a media stream from the Android device (video, etc.)
-    peer.on("stream", (stream) => {
-      console.log("Received remote stream from Android device");
-      const videoElement = document.getElementById(
-        "remoteVideo"
-      ) as HTMLVideoElement;
-      if (videoElement) {
-        videoElement.srcObject = stream;
-      }
-    });
+      console.log("Offer signal passed to SimplePeer");
 
-    // Handle errors within the peer connection
-    peer.on("error", (err) => {
-      console.error("WebRTC Peer error:", err);
-    });
+      // Handle SDP answer event
+      peer.on("signal", (answer) => {
+        console.log("Sending SDP answer to Android:", answer);
+        if (socket) {
+          socket.send(
+            JSON.stringify({
+              type: "Answer",
+              username: username,
+              target: data.username,
+              data: answer.sdp, // Send the SDP answer back to the Android device - Error fine no Problem
+            })
+          );
+        }
+      });
+
+      // Handle receiving a remote stream
+      peer.on("stream", (stream) => {
+        console.log("Received remote stream from Android device");
+        const videoElement = document.getElementById(
+          "remoteVideo"
+        ) as HTMLVideoElement;
+        if (videoElement) {
+          videoElement.srcObject = stream;
+        }
+      });
+
+      // Handle any errors from the peer connection
+      peer.on("error", (err) => {
+        console.error("WebRTC Peer error:", err);
+      });
+    } catch (error) {
+      console.error("Error initializing SimplePeer or handling offer:", error);
+    }
   } else {
     console.error("Peer is already initialized");
   }
