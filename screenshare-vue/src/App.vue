@@ -1,4 +1,4 @@
-<script setup lang="ts">
+<!-- <script setup lang="ts">
 import { RouterLink, RouterView } from 'vue-router'
 import HelloWorld from './components/HelloWorld.vue'
 </script>
@@ -82,4 +82,41 @@ nav a:first-of-type {
     margin-top: 1rem;
   }
 }
-</style>
+</style> -->
+
+//Code-1-----------
+<!-- <template>
+  <router-view />
+</template>
+
+<script lang="ts">
+import { defineComponent } from "vue";
+import { startWebSocketConnection } from "@/services/websocketService";
+
+export default defineComponent({
+  mounted() {
+    startWebSocketConnection();
+  },
+});
+</script> -->
+
+//Code-2-------------
+<template>
+  <router-view />
+</template>
+
+<script lang="ts">
+import { defineComponent, onMounted } from "vue";
+import { startWebSocketConnection } from "@/services/websocketService";
+import { useDeviceStore } from "@/store/deviceStore";
+
+export default defineComponent({
+  setup() {
+    const deviceStore = useDeviceStore(); // Initialize the store
+
+    onMounted(() => {
+      startWebSocketConnection(deviceStore); // Pass the store to the WebSocket connection
+    });
+  },
+});
+</script>
